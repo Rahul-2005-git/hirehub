@@ -1,0 +1,77 @@
+# =============================================================================
+# HireHub Full Stack Docker Compose
+# Services: PostgreSQL 16, Spring Boot API (Java 21), React SPA (Nginx)
+# =============================================================================
+
+services:
+  # 1. Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: hirehub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-hirehub}
+      POSTGRES_USER: ${DB_USERNAME:-hirehub}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-hirehub}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - hirehub-postgres-data:/var/lib/postgresql/data
+    networks:
+      - hirehub-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-hirehub} -d ${DB_NAME:-hirehub}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Backend Spring Boot API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hirehub-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-hirehub}
+      DB_USERNAME: ${DB_USERNAME:-hirehub}
+      DB_PASSWORD: ${DB_PASSWORD:-hirehub}
+      JWT_SECRET: ${JWT_SECRET:-c29tZXJlYWxseWxvbmc1MTJiaXRzZWNyZXRrZXlmb3JoaXJlaHViYXBwbGljYXRpb25kZXZlbG9wbWVudHNlY3VyZQ==}
+      SERVER_PORT: 8080
+      UPLOAD_DIR: /app/uploads/resumes
+    ports:
+      - "8080:8080"
+    volumes:
+      - hirehub-uploads-data:/app/uploads/resumes
+    networks:
+      - hirehub-network
+
+  # 3. Frontend Web App (Nginx Reverse Proxy + React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hirehub-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - hirehub-network
+
+networks:
+  hirehub-network:
+    driver: bridge
+
+volumes:
+  hirehub-postgres-data:
+    name: hirehub_postgres_data
+  hirehub-uploads-data:
+    name: hirehub_uploads_data

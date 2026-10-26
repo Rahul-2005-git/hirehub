@@ -1,0 +1,58 @@
+# Test configuration.
+spring:
+  application:
+    name: HireHub
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        default_batch_fetch_size: 25
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+server:
+  port: 8080
+  error:
+    include-stacktrace: never
+    include-message: never
+
+hirehub:
+  version: 0.1.0-SNAPSHOT
+  upload:
+    dir: target/test-uploads
+  rate-limiting:
+    enabled: false
+  jwt:
+    # 48 random bytes, base64-encoded - comfortably above the 256-bit minimum HS256 requires.
+    secret: 5f0e6f0a3c9b7d21e4a8f61b2c9d0e3a7b4c5d6e7f809192a3b4c5d6e7f8091a2b3c4d5e6f708192
+    expiration-ms: 3600000
+    issuer: hirehub-test
+
+logging:
+  level:
+    root: INFO
+    com.hirehub: WARN

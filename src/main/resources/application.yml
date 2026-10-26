@@ -1,0 +1,107 @@
+spring:
+  application:
+    name: HireHub
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:hirehub}
+    username: ${DB_USERNAME:hirehub}
+    password: ${DB_PASSWORD:hirehub}
+    driver-class-name: org.postgresql.Driver
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+    hikari:
+      pool-name: hirehub-pool
+      # Sized for a single app instance against one Postgres. The old rule of thumb
+      # (connections = 2 x cores) beats a large pool: more connections than the DB can
+      # run in parallel just moves the queue from the app to the database.
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    # validate - never 'update' or 'create-drop'. Flyway owns the schema; Hibernate only
+    # checks that the entity mappings agree with it and fails fast at startup if they drift.
+    hibernate:
+      ddl-auto: validate
+    # Off deliberately. open-in-view keeps a persistence context open for the whole HTTP
+    # request, which hides lazy-loading bugs and holds a connection during JSON writing.
+    # With it off, anything not fetched inside the service throws - which is the point.
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        # Batches lazy associations instead of firing one query per parent row (N+1).
+        default_batch_fetch_size: 25
+        format_sql: true
+    show-sql: ${JPA_SHOW_SQL:false}
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # Fail rather than silently adopt a non-empty database that was never migrated.
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    # Never leak stack traces or internal messages to API clients.
+    # Phase 12 replaces this default handling with @RestControllerAdvice.
+    include-stacktrace: never
+    include-message: never
+
+hirehub:
+  version: @project.version@
+  upload:
+    dir: ${UPLOAD_DIR:uploads/resumes}
+  jwt:
+    # Default valid base64 secret key for local development
+    secret: ${JWT_SECRET:c29tZXJlYWxseWxvbmc1MTJiaXRzZWNyZXRrZXlmb3JoaXJlaHViYXBwbGljYXRpb25kZXZlbG9wbWVudHNlY3VyZQ==}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+    issuer: ${JWT_ISSUER:hirehub}
+
+# Only the endpoints we actually need are exposed. Everything else stays off by
+# default, which keeps the attack surface small.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    root: INFO
+    com.hirehub: ${LOG_LEVEL_APP:DEBUG}
+    # Set both to DEBUG/TRACE locally to inspect generated SQL and bound parameters.
+    # Left at WARN by default: SQL logs are noisy and bound parameters can contain
+    # personal data, which must not end up in production logs.
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.orm.jdbc.bind: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"

@@ -1,0 +1,12 @@
+target/
+.git/
+.gitignore
+.idea/
+*.iml
+.vscode/
+frontend/node_modules/
+frontend/dist/
+uploads/
+*.log
+.env
+reset_admin_password.sql
