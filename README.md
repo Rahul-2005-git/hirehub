@@ -662,7 +662,4 @@ HireHub includes an automated GitHub Actions pipeline (`.github/workflows/ci.yml
 
 ---
 
-## 13. License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
